@@ -1,6 +1,6 @@
 use covidHistorico
---SELECT * FROM dbo.cat_entidades;
---Select * from dbo.datoscovid;
+--select * from dbo.cat_entidades;
+--select * from dbo.datoscovid;
 
 
 /************************************
@@ -41,38 +41,31 @@ and d.anio = m.anio
 and d.total_recuperados = m.max_recuperados
 order by d.ENTIDAD_UM, d.anio;
 
-
-
-
-
-
-
 /************************************
-	Consulta No.3 Listar el porcentaje de casos confirmados en cada una 
-	de las siguientes morbilidades a nivel nacional: diabetes, obesidad e hipertensión. 
-	Significado de los valores de los catalogos: 
-	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
-	
+    consulta no.3 listar el porcentaje de casos confirmados en cada una 
+    de las siguientes morbilidades a nivel nacional: diabetes, obesidad e hipertensión. 
+    responsable: Palacios Reyes Leslie Noemi
 *************************************/
+select 
+    'diabetes' as morbilidad,
+    100.0 * sum(case when diabetes = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3)
+union all
+select 
+    'obesidad' as morbilidad,
+    100.0 * sum(case when obesidad = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3)
+union all
+select 
+    'hipertensión' as morbilidad,
+    100.0 * sum(case when hipertension = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3);
 
-SELECT 
-    'Diabetes' AS Morbilidad,
-    100.0 * SUM(CASE WHEN DIABETES = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
-FROM datoscovid
-WHERE CLASIFICACION_FINAL IN (1, 2, 3)
-UNION ALL
-SELECT 
-    'Obesidad' AS Morbilidad,
-    100.0 * SUM(CASE WHEN OBESIDAD = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
-FROM datoscovid
-WHERE CLASIFICACION_FINAL IN (1, 2, 3)
-UNION ALL
-SELECT 
-    'Hipertensión' AS Morbilidad,
-    100.0 * SUM(CASE WHEN HIPERTENSION = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
-FROM datoscovid
-WHERE CLASIFICACION_FINAL IN (1, 2, 3);
+
+
 
 
 
@@ -114,23 +107,22 @@ order by casos_recuperados desc;
 
 
 
-
 /************************************
-	Consulta No.6 Listar el total de casos confirmados/sospechosos 
-	por estado en cada uno de los años registrados en la base de datos. 
-	Significado de los valores de los catalogos: 
-	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
+    Consulta no.6 listar el total de casos confirmados/sospechosos 
+    por estado en cada uno de los años registrados en la base de datos. 
+    Responsable: Palacios Reyes Leslie NoemI
 *************************************/
-SELECT 
-    ENTIDAD_RES AS Estado,  
-    YEAR(TRY_CAST(FECHA_INGRESO AS DATE)) AS Año,  
-    COUNT(*) AS Total_Casos  
-FROM datoscovid  
-WHERE CLASIFICACION_FINAL IN (1, 2, 3)  -- 1, 2, 3 son casos confirmados o sospechosos  
-AND TRY_CAST(FECHA_INGRESO AS DATE) IS NOT NULL  
-GROUP BY ENTIDAD_RES, YEAR(TRY_CAST(FECHA_INGRESO AS DATE))  
-ORDER BY Año, Total_Casos DESC;
+select 
+    entidad_res as estado,  
+    year(try_cast(fecha_ingreso as date)) as año,  
+    count(*) as total_casos  
+from datoscovid  
+where clasificacion_final in (1, 2, 3)  -- 1, 2, 3 son casos confirmados o sospechosos  
+and try_cast(fecha_ingreso as date) is not null  
+group by entidad_res, year(try_cast(fecha_ingreso as date))  
+order by año, total_casos desc;
+
+
 
 
 
@@ -177,25 +169,21 @@ where total_defunciones = (select min(total_defunciones) from DefuncionesPorMuni
 /************************************
 	Consulta No. 9.	Listar el top 3 de municipios con menos casos 
 	recuperados en el año 2021. 
-	Significado de los valores de los catalogos: 
-	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
+	Responsable: Palacios Reyes Leslie NoemI 
 *************************************/
-WITH casos_recuperados AS (
-    SELECT 
-        ENTIDAD_RES, 
-        MUNICIPIO_RES, 
-        COUNT(*) AS total_recuperados
-    FROM datoscovid
-    WHERE YEAR(TRY_CAST(FECHA_INGRESO AS DATE)) = 2021
-    AND FECHA_DEF = '9999-99-99'  -- Casos recuperados (asumimos que no han fallecido)
-    GROUP BY ENTIDAD_RES, MUNICIPIO_RES
+with casos_recuperados as (
+    select 
+        entidad_res, 
+        municipio_res, 
+        count(*) as total_recuperados
+    from datoscovid
+    where year(try_cast(fecha_ingreso as date)) = 2021
+    and fecha_def = '9999-99-99'  -- casos recuperados (asumimos que no han fallecido)
+    group by entidad_res, municipio_res
 )
-SELECT  TOP 3 * 
-FROM casos_recuperados 
-ORDER BY total_recuperados ASC, ENTIDAD_RES, MUNICIPIO_RES;
-
-
+select  top 3 * 
+from casos_recuperados 
+order by total_recuperados asc, entidad_res, municipio_res;
 
 /************************************
 	Consulta No.11 Listar el porcentaje de casos hospitalizados por estado en el año 2020
@@ -232,21 +220,20 @@ order by porcentaje_hospitalizados desc;
 
 
 /************************************
-	Consulta No. 12
-	Significado de los valores de los catalogos: 
+	Consulta No. 12 Listar total de casos negativos por
+        estado en los años 2020 y 2021.
 	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
 *************************************/
-SELECT 
-    ce.entidad AS Estado,
-    YEAR(TRY_CAST(dc.FECHA_INGRESO AS DATE)) AS Año,
-    COUNT(*) AS Total_Casos_Negativos  
-FROM dbo.datoscovid dc
-JOIN dbo.cat_entidades ce ON dc.ENTIDAD_RES = ce.clave
-WHERE dc.CLASIFICACION_FINAL = 7  -- Casos negativos
-AND YEAR(TRY_CAST(dc.FECHA_INGRESO AS DATE)) IN (2020, 2021)
-GROUP BY ce.entidad, YEAR(TRY_CAST(dc.FECHA_INGRESO AS DATE))
-ORDER BY ce.entidad, Año;
+select 
+    ce.entidad as estado,
+    year(try_cast(dc.fecha_ingreso as date)) as año,
+    count(*) as total_casos_negativos  
+from dbo.datoscovid dc
+join dbo.cat_entidades ce on dc.entidad_res = ce.clave
+where dc.clasificacion_final = 7  -- casos negativos
+and year(try_cast(dc.fecha_ingreso as date)) in (2020, 2021)
+group by ce.entidad, year(try_cast(dc.fecha_ingreso as date))
+order by ce.entidad, año;
 
 
 
