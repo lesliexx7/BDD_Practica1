@@ -1,0 +1,7 @@
+/************************************
+	Consulta No.2 Listar el municipio con más casos confirmados recuperados por estado y por año
+	Requisitos: que su estado_final=1,2 o 3 (cofirmado) que se haya recuperado (sin fecha de defuncion),ordenar por estado y por año, despues contar por municipio y mostrar el mayor por este orden
+	Responsable: Legorreta Rodriguez Maria Fernanda
+
+*************************************/
+
