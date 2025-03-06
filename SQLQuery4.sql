@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 use covidHistorico
 --select * from dbo.cat_entidades;
 --select * from dbo.datoscovid;
@@ -306,6 +307,10 @@ SELECT
     100.0 * SUM(CASE WHEN HIPERTENSION = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
 FROM datoscovid
 WHERE CLASIFICACION_FINAL IN (1, 2, 3);
+=======
+select * from dbo.cat_entidades;
+select * from dbo.datoscovid;
+>>>>>>> 068ebba (CAMBIOS POR LESLIE NOEMI)
 
 
 /************************************
@@ -323,23 +328,30 @@ where not((HIPERTENSION=1 or OBESIDAD=1 or DIABETES=1 or TABAQUISMO=1) or
 
 
 /************************************
-	Consulta No.6 Listar el total de casos confirmados/sospechosos 
-	por estado en cada uno de los a�os registrados en la base de datos. 
-	Significado de los valores de los catalogos: 
-	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
+    consulta no.3 listar el porcentaje de casos confirmados en cada una 
+    de las siguientes morbilidades a nivel nacional: diabetes, obesidad e hipertensión. 
+    responsable: palacios reyes leslie noemi
 *************************************/
-SELECT 
-    ENTIDAD_RES AS Estado,  
-    YEAR(TRY_CAST(FECHA_INGRESO AS DATE)) AS A�o,  
-    COUNT(*) AS Total_Casos  
-FROM datoscovid  
-WHERE CLASIFICACION_FINAL IN (1, 2, 3)  -- 1, 2, 3 son casos confirmados o sospechosos  
-AND TRY_CAST(FECHA_INGRESO AS DATE) IS NOT NULL  
-GROUP BY ENTIDAD_RES, YEAR(TRY_CAST(FECHA_INGRESO AS DATE))  
-ORDER BY A�o, Total_Casos DESC;
+select 
+    'diabetes' as morbilidad,
+    100.0 * sum(case when diabetes = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3)
+union all
+select 
+    'obesidad' as morbilidad,
+    100.0 * sum(case when obesidad = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3)
+union all
+select 
+    'hipertensión' as morbilidad,
+    100.0 * sum(case when hipertension = 1 then 1 else 0 end) / count(*) as porcentaje
+from datoscovid
+where clasificacion_final in (1, 2, 3);
 
 /************************************
+<<<<<<< HEAD
 	Consulta No.7 Para el a�o 2020 y 2021 cu�l fue el mes con m�s casos registrados, confirmados, 
 sospechosos, por estado registrado en la base de datos. 
 	Significado de los valores de los catalogos: 
@@ -363,17 +375,39 @@ group by FECHA_SINTOMAS
 	Significado de los valores de los catalogos: 
 	Responsable: Palacios Reyes Leslie Noemi
 	Comentarios: 
+=======
+    consulta no.6 listar el total de casos confirmados/sospechosos 
+    por estado en cada uno de los años registrados en la base de datos. 
+    responsable: palacios reyes leslie noemi
+>>>>>>> 068ebba (CAMBIOS POR LESLIE NOEMI)
 *************************************/
-WITH casos_recuperados AS (
-    SELECT 
-        ENTIDAD_RES, 
-        MUNICIPIO_RES, 
-        COUNT(*) AS total_recuperados
-    FROM datoscovid
-    WHERE YEAR(TRY_CAST(FECHA_INGRESO AS DATE)) = 2021
-    AND FECHA_DEF = '9999-99-99'  -- Casos recuperados (asumimos que no han fallecido)
-    GROUP BY ENTIDAD_RES, MUNICIPIO_RES
+select 
+    entidad_res as estado,  
+    year(try_cast(fecha_ingreso as date)) as año,  
+    count(*) as total_casos  
+from datoscovid  
+where clasificacion_final in (1, 2, 3)  -- 1, 2, 3 son casos confirmados o sospechosos  
+and try_cast(fecha_ingreso as date) is not null  
+group by entidad_res, year(try_cast(fecha_ingreso as date))  
+order by año, total_casos desc;
+
+/************************************
+    consulta no. 9 listar el top 3 de municipios con menos casos 
+    recuperados en el año 2021. 
+    responsable: palacios reyes leslie noemi
+
+*************************************/
+with casos_recuperados as (
+    select 
+        entidad_res, 
+        municipio_res, 
+        count(*) as total_recuperados
+    from datoscovid
+    where year(try_cast(fecha_ingreso as date)) = 2021
+    and fecha_def = '9999-99-99'  -- casos recuperados (asumimos que no han fallecido)
+    group by entidad_res, municipio_res
 )
+<<<<<<< HEAD
 SELECT  TOP 3 * 
 FROM casos_recuperados 
 ORDER BY total_recuperados ASC, ENTIDAD_RES, MUNICIPIO_RES;
@@ -392,13 +426,17 @@ select SEXO,(
 												(FECHA_SINTOMAS like '2020-%' or FECHA_SINTOMAS like'2021-%'))
 )casos from datoscovid 
 where CLASIFICACION_FINAL=3 and (FECHA_SINTOMAS like '2020-%' or FECHA_SINTOMAS like'2021-%') group by SEXO
+=======
+select  top 3 * 
+from casos_recuperados 
+order by total_recuperados asc, entidad_res, municipio_res;
+>>>>>>> 068ebba (CAMBIOS POR LESLIE NOEMI)
 
 /************************************
-	Consulta No. 12
-	Significado de los valores de los catalogos: 
-	Responsable: Palacios Reyes Leslie Noemi
-	Comentarios: 
+    consulta no.  12 Listar total de casos negatico por estado en los años 2020 y 2021
+    responsable: palacios reyes leslie noemi
 *************************************/
+<<<<<<< HEAD
 SELECT 
     ce.entidad AS Estado,
     YEAR(TRY_CAST(dc.FECHA_INGRESO AS DATE)) AS A�o,
@@ -420,6 +458,18 @@ ORDER BY ce.entidad, A�o;
 	Comentarios: 
 	
 *************************************/
+=======
+select 
+    ce.entidad as estado,
+    year(try_cast(dc.fecha_ingreso as date)) as año,
+    count(*) as total_casos_negativos  
+from dbo.datoscovid dc
+join dbo.cat_entidades ce on dc.entidad_res = ce.clave
+where dc.clasificacion_final = 7  -- casos negativos
+and year(try_cast(dc.fecha_ingreso as date)) in (2020, 2021)
+group by ce.entidad, year(try_cast(dc.fecha_ingreso as date))
+order by ce.entidad, año;
+>>>>>>> 068ebba (CAMBIOS POR LESLIE NOEMI)
 
 
 select  distinct(select 
