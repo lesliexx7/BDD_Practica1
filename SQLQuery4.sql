@@ -1,5 +1,52 @@
-SELECT * FROM dbo.cat_entidades;
-Select * from dbo.datoscovid;
+use covidHistorico
+--SELECT * FROM dbo.cat_entidades;
+--Select * from dbo.datoscovid;
+
+
+/************************************
+	Consulta No.2 Listar el municipio con más casos confirmados recuperados por estado y por año
+	Requisitos: que su estado_final=1,2 o 3 (cofirmado) que se haya recuperado (sin fecha de defuncion),ordenar por estado y por año, despues contar por municipio y mostrar el mayor por este orden
+	Responsable: Legorreta Rodriguez Maria Fernanda
+
+*************************************/
+select d.ENTIDAD_UM, d.MUNICIPIO_RES, d.anio, d.total_recuperados
+from (
+      select
+        ENTIDAD_UM, 
+        MUNICIPIO_RES, 
+        year(FECHA_INGRESO) anio, 
+        count(*) total_recuperados
+   from datoscovid
+    where CLASIFICACION_FINAL in (1, 2, 3) 
+    and FECHA_DEF = '9999-99-99'
+    group by ENTIDAD_UM, MUNICIPIO_RES, year(FECHA_INGRESO)
+) d
+join (
+    select ENTIDAD_UM, anio, max(total_recuperados) max_recuperados
+    from (
+        select 
+            ENTIDAD_UM, 
+            MUNICIPIO_RES, 
+            year(FECHA_INGRESO) anio, 
+            count(*) total_recuperados
+        from datoscovid
+        where CLASIFICACION_FINAL in (1, 2, 3)  
+        and FECHA_DEF = '9999-99-99'
+        group by ENTIDAD_UM, MUNICIPIO_RES, year(FECHA_INGRESO)
+    ) x
+    group by ENTIDAD_UM, anio
+) m
+on d.ENTIDAD_UM = m.ENTIDAD_UM 
+and d.anio = m.anio 
+and d.total_recuperados = m.max_recuperados
+order by d.ENTIDAD_UM, d.anio;
+
+
+
+
+
+
+
 /************************************
 	Consulta No.3 Listar el porcentaje de casos confirmados en cada una 
 	de las siguientes morbilidades a nivel nacional: diabetes, obesidad e hipertensión. 
@@ -26,6 +73,46 @@ SELECT
     100.0 * SUM(CASE WHEN HIPERTENSION = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
 FROM datoscovid
 WHERE CLASIFICACION_FINAL IN (1, 2, 3);
+
+
+
+
+
+
+/************************************
+	Consulta No.5 Listar los estados con más casos recuperados con neumonía
+	Requisitos: tener pacientes que tengan neumonia, que no hayan fallecido y que su total sea mayor que los que si lo hicieron
+
+*************************************/
+--solucion 1
+select e.entidad, count (d.ENTIDAD_UM) as Casos_recuperados
+from datoscovid d
+join cat_entidades e on d.ENTIDAD_UM = e.clave
+where d.NEUMONIA = '1'
+and d.FECHA_DEF = '9999-99-99'
+group by e.entidad
+order by Casos_recuperados desc
+
+--solucion 2: verificando que haya mas casos recuperados que fallecidos
+select entidad, casos_recuperados
+from (
+    select entidad, casos_recuperados, total_fallecidos
+    from (
+        select c.entidad, 
+               COUNT(CASE when d.FECHA_DEF = '9999-99-99' then 1 end) as casos_recuperados,
+               COUNT(CASE when d.FECHA_DEF <> '9999-99-99' then 1 end) as total_fallecidos
+       from datoscovid d
+        JOIN cat_entidades c on d.ENTIDAD_UM = c.clave
+        where d.NEUMONIA = '1'
+        group by c.entidad
+    ) as conteo
+    where casos_recuperados > total_fallecidos 
+) as resultado
+order by casos_recuperados desc;
+
+
+
+
 
 /************************************
 	Consulta No.6 Listar el total de casos confirmados/sospechosos 
