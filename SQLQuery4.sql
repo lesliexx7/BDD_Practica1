@@ -9,7 +9,6 @@ Select * from dbo.datoscovid;
 	
 *************************************/
 
-hiii
 
 
 SELECT 
