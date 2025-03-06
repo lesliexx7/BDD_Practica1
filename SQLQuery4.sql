@@ -9,9 +9,6 @@ Select * from dbo.datoscovid;
 	
 *************************************/
 
-hiii
-
-
 SELECT 
     'Diabetes' AS Morbilidad,
     100.0 * SUM(CASE WHEN DIABETES = 1 THEN 1 ELSE 0 END) / COUNT(*) AS Porcentaje
@@ -48,7 +45,7 @@ GROUP BY ENTIDAD_RES, YEAR(TRY_CAST(FECHA_INGRESO AS DATE))
 ORDER BY Año, Total_Casos DESC;
 
 /************************************
-	Consulta No. 99.	Listar el top 3 de municipios con menos casos 
+	Consulta No. 9.	Listar el top 3 de municipios con menos casos 
 	recuperados en el año 2021. 
 	Significado de los valores de los catalogos: 
 	Responsable: Palacios Reyes Leslie Noemi
