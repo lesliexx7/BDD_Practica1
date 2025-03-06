@@ -1,7 +1,190 @@
 /************************************
 	Consulta No.2 Listar el municipio con más casos confirmados recuperados por estado y por año
 	Requisitos: que su estado_final=1,2 o 3 (cofirmado) que se haya recuperado (sin fecha de defuncion),ordenar por estado y por año, despues contar por municipio y mostrar el mayor por este orden
-	Responsable: Legorreta Rodriguez Maria Fernanda
+	
+*************************************/
+
+
+
+SELECT d.ENTIDAD_UM, d.MUNICIPIO_RES, d.anio, d.total_recuperados
+FROM (
+      SELECT 
+        ENTIDAD_UM, 
+        MUNICIPIO_RES, 
+        YEAR(FECHA_INGRESO) AS anio, 
+        COUNT(*) AS total_recuperados
+    FROM datoscovid
+    WHERE CLASIFICACION_FINAL IN (1, 2, 3) 
+    AND FECHA_DEF = '9999-99-99'
+    GROUP BY ENTIDAD_UM, MUNICIPIO_RES, YEAR(FECHA_INGRESO)
+) d
+JOIN (
+    SELECT ENTIDAD_UM, anio, MAX(total_recuperados) AS max_recuperados
+    FROM (
+        SELECT 
+            ENTIDAD_UM, 
+            MUNICIPIO_RES, 
+            YEAR(FECHA_INGRESO) AS anio, 
+            COUNT(*) AS total_recuperados
+        FROM datoscovid
+        WHERE CLASIFICACION_FINAL IN (1, 2, 3)  
+        AND FECHA_DEF = '9999-99-99'
+        GROUP BY ENTIDAD_UM, MUNICIPIO_RES, YEAR(FECHA_INGRESO)
+    ) x
+    GROUP BY ENTIDAD_UM, anio
+) m
+ON d.ENTIDAD_UM = m.ENTIDAD_UM 
+AND d.anio = m.anio 
+AND d.total_recuperados = m.max_recuperados
+ORDER BY d.ENTIDAD_UM, d.anio;
+
+
+
+
+/************************************
+	Consulta No.5 Listar los estados con más casos recuperados con neumonía
+	Requisitos: tener pacientes que tengan neumonia, que no hayan fallecido y que su total sea mayor que los que si lo hicieron
 
 *************************************/
+
+--solucion 1
+select e.entidad, count (d.ENTIDAD_UM) as Casos_recuperados
+from datoscovid d
+join cat_entidades e on d.ENTIDAD_UM = e.clave
+where d.NEUMONIA = '1'
+and d.FECHA_DEF = '9999-99-99'
+group by e.entidad
+order by Casos_recuperados desc
+
+
+
+--solucion 2: verificando que haya mas casos recuperados que fallecidos
+
+select entidad, casos_recuperados
+from (
+    select entidad, casos_recuperados, total_fallecidos
+    from (
+        select c.entidad, 
+               COUNT(CASE when d.FECHA_DEF = '9999-99-99' then 1 end) as casos_recuperados,
+               COUNT(CASE when d.FECHA_DEF <> '9999-99-99' then 1 end) as total_fallecidos
+       from datoscovid d
+        JOIN cat_entidades c on d.ENTIDAD_UM = c.clave
+        where d.NEUMONIA = '1'
+        group by c.entidad
+    ) as conteo
+    where casos_recuperados > total_fallecidos 
+) as resultado
+order by casos_recuperados desc;
+
+
+
+
+/************************************
+	Consulta No.8 Listar el municipio con menos defunciones en el mes con mas casos confirmados con neumonía en los años 2020 y 2021
+	Requisitos: tener neumonia=1, año 2020 y año 2021, contabilizar mes con mayor numero de confirmados, verificar cual municipio tiene menos defunciones (fecha_def<> '9999-99-99')	Significado de los valores de los catalogos
+
+*************************************/
+
+
+WITH MesMaxConfirmados AS ( 
+    SELECT 
+        MONTH(FECHA_INGRESO) AS mes, 
+        YEAR(FECHA_INGRESO) AS anio, 
+        COUNT(*) AS total_casos
+    FROM datoscovid
+    WHERE NEUMONIA = '1'  
+    AND CLASIFICACION_FINAL IN (1, 2, 3) 
+    AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+    GROUP BY YEAR(FECHA_INGRESO), MONTH(FECHA_INGRESO)
+    HAVING COUNT(*) = (SELECT MAX(total_casos) 
+                       FROM (SELECT COUNT(*) AS total_casos 
+                             FROM datoscovid 
+                             WHERE NEUMONIA = '1' 
+                             AND CLASIFICACION_FINAL IN (1, 2, 3)  
+                             AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+                             GROUP BY YEAR(FECHA_INGRESO), MONTH(FECHA_INGRESO)) AS max_casos)
+), DefuncionesPorMunicipio AS (
+    SELECT ENTIDAD_UM, MUNICIPIO_RES, COUNT(*) AS total_defunciones
+    FROM datoscovid
+    WHERE NEUMONIA = '1'
+    AND CLASIFICACION_FINAL IN (1, 2, 3)  -- Casos confirmados
+    AND YEAR(FECHA_INGRESO) = (SELECT anio FROM MesMaxConfirmados)  
+    AND MONTH(FECHA_INGRESO) = (SELECT mes FROM MesMaxConfirmados)
+    AND FECHA_DEF <> '9999-99-99'  
+    GROUP BY ENTIDAD_UM, MUNICIPIO_RES
+)
+SELECT ENTIDAD_UM, MUNICIPIO_RES, total_defunciones
+FROM DefuncionesPorMunicipio
+WHERE total_defunciones = (SELECT MIN(total_defunciones) FROM DefuncionesPorMunicipio);
+
+
+
+
+
+/************************************
+	Consulta No.11 Listar el porcentaje de casos hospitalizados por estado en el año 2020
+	Requisitos: estar hospitalizado, fecha de ingreso en 2020, agrupar por estado el numero de casos hospitalizados, comparar el porcentaje con los casos totales por año
+
+*************************************/
+
+WITH CasosPorEstado AS (
+    SELECT 
+        ENTIDAD_UM, 
+        COUNT(*) AS total_hospitalizados
+    FROM datoscovid
+    WHERE 
+        TIPO_PACIENTE = 2 
+        AND YEAR(FECHA_INGRESO) = 2020
+    GROUP BY ENTIDAD_UM
+), 
+TotalHospitalizados AS (
+    SELECT 
+        COUNT(*) AS total_hospitalizados_pais
+    FROM datoscovid
+    WHERE 
+        TIPO_PACIENTE = 2
+        AND YEAR(FECHA_INGRESO) = 2020
+)
+SELECT 
+    c.ENTIDAD_UM, 
+    c.total_hospitalizados,
+    (c.total_hospitalizados * 100.0 / t.total_hospitalizados_pais) AS porcentaje_hospitalizados
+FROM CasosPorEstado c, TotalHospitalizados t
+ORDER BY porcentaje_hospitalizados DESC;
+
+
+
+
+
+
+
+
+
+/************************************
+	Consulta No.14 Listar el rango de edad con mas casos confirmados y que fallecieron en los años 2020 y 2021
+	Requisitos: contabilizar por rango de edad, ordenar cual es mayor y menor
+
+*************************************/
+
+SELECT TOP 1 rango_edad, COUNT(*) AS total_fallecidos
+FROM (
+    SELECT 
+        CASE 
+            WHEN EDAD BETWEEN 0 AND 9 THEN '0-9'
+            WHEN EDAD BETWEEN 10 AND 19 THEN '10-19'
+            WHEN EDAD BETWEEN 20 AND 29 THEN '20-29'
+            WHEN EDAD BETWEEN 30 AND 39 THEN '30-39'
+            WHEN EDAD BETWEEN 40 AND 49 THEN '40-49'
+            WHEN EDAD BETWEEN 50 AND 59 THEN '50-59'
+            WHEN EDAD BETWEEN 60 AND 69 THEN '60-69'
+            WHEN EDAD BETWEEN 70 AND 79 THEN '70-79'
+            WHEN EDAD >= 80 THEN '80+'
+        END AS rango_edad
+    FROM datoscovid
+    WHERE FECHA_DEF <> '9999-99-99'  
+	and CLASIFICACION_FINAL in ('1','2', '3') 
+    AND (YEAR(FECHA_DEF) = 2020 OR YEAR(FECHA_DEF) = 2021) 
+) AS rango_fallecidos
+GROUP BY rango_edad
+ORDER BY total_fallecidos DESC
 
